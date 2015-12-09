@@ -101,7 +101,7 @@ function getRequestMethod() {
 // Only needed in cross-origin setups
 function handleCorsRequest() {
     // If you are relying on CORS, you will need to adjust the allowed domain here.
-    header('Access-Control-Allow-Origin: http://fineuploader.com');
+    header('Access-Control-Allow-Origin: '. $_ENV['APP_URL']);
 }
 
 // Only needed in cross-origin setups
@@ -281,7 +281,13 @@ function verifyFileInS3($includeThumbnail) {
     }
     else {
         $link = getTempLink($bucket, $key);
-        $response = array("tempLink" => $link);
+        $metadata = getMetaData($bucket, $key);
+
+        $response = array(
+            "tempLink" => $link,
+            "metadata" => $metadata,
+            "key" => $key
+        );
 
         if ($includeThumbnail) {
             $response["thumbnailUrl"] = $link;
@@ -306,6 +312,14 @@ function getObjectSize($bucket, $key) {
             'Key' => $key
         ));
     return $objInfo['ContentLength'];
+}
+
+function getMetaData($bucket, $key) {
+    $objInfo = getS3Client()->headObject(array(
+            'Bucket' => $bucket,
+            'Key' => $key
+        ));
+    return $objInfo['Metadata'];
 }
 
 // Return true if it's likely that the associate file is natively
