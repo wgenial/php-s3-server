@@ -60,7 +60,7 @@ else if ($method == "DELETE") {
 }
 // This is all you really need if not using the delete file feature
 // and not working in a CORS environment
-else if	($method == 'POST') {
+else if ($method == 'POST') {
     handleCorsRequest();
 
     // Assumes the successEndpoint has a parameter of "success" associated with it,
@@ -88,7 +88,7 @@ function getRequestMethod() {
     // or unrecognized, such as when XDomainRequest has been used to
     // send the request.
     if(isset($HTTP_RAW_POST_DATA)) {
-    	parse_str($HTTP_RAW_POST_DATA, $_POST);
+        parse_str($HTTP_RAW_POST_DATA, $_POST);
     }
 
     if (isset($_REQUEST['_method'])) {
@@ -282,11 +282,15 @@ function verifyFileInS3($includeThumbnail) {
     else {
         $link = getTempLink($bucket, $key);
         $metadata = getMetaData($bucket, $key);
+        $size = getObjectSize($bucket, $key);
+        $lastmodified = getObjectLastModified($bucket, $key);
 
         $response = array(
-            "tempLink" => $link,
+            "link" => $link,
             "metadata" => $metadata,
-            "key" => $key
+            "key" => $key,
+            "size" => $size,
+            "lastmodified" => date('Y-m-d H:i:s', strtotime($lastmodified))
         );
 
         if ($includeThumbnail) {
@@ -303,7 +307,7 @@ function getTempLink($bucket, $key) {
     $url = "{$bucket}/{$key}";
     $request = $client->get($url);
 
-    return $client->createPresignedUrl($request, '+15 minutes');
+    return $client->createPresignedUrl($request, '+1 day');
 }
 
 function getObjectSize($bucket, $key) {
@@ -312,6 +316,14 @@ function getObjectSize($bucket, $key) {
             'Key' => $key
         ));
     return $objInfo['ContentLength'];
+}
+
+function getObjectLastModified($bucket, $key) {
+    $objInfo = getS3Client()->headObject(array(
+            'Bucket' => $bucket,
+            'Key' => $key
+        ));
+    return $objInfo['LastModified'];
 }
 
 function getMetaData($bucket, $key) {
