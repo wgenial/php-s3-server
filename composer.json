@@ -5,5 +5,5 @@
     "license": "MIT",
     "require": {
         "aws/aws-sdk-php": "2.*"
-  }
+    }
 }

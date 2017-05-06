@@ -22,6 +22,7 @@
  * If you need to install the AWS SDK, see http://docs.aws.amazon.com/aws-sdk-php-2/guide/latest/installation.html.
  */
 
+require '.env.php';
 require '../../autoload.php';
 use Aws\S3\S3Client;
 
