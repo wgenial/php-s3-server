@@ -28,23 +28,23 @@ use Aws\S3\S3Client;
 
 // These assume you have the associated AWS keys stored in
 // the associated system environment variables
-$clientPrivateKey = $_ENV['AWS_CLIENT_SECRET_KEY'];
+$clientPrivateKey = AWS_CLIENT_SECRET_KEY;
 // These two keys are only needed if the delete file feature is enabled
 // or if you are, for example, confirming the file size in a successEndpoint
 // handler via S3's SDK, as we are doing in this example.
-$serverPublicKey = $_ENV['AWS_SERVER_PUBLIC_KEY'];
-$serverPrivateKey = $_ENV['AWS_SERVER_PRIVATE_KEY'];
+$serverPublicKey = AWS_SERVER_PUBLIC_KEY;
+$serverPrivateKey = AWS_SERVER_PRIVATE_KEY;
 
 // The following variables are used when validating the policy document
 // sent by the uploader. 
-$expectedBucketName = $_ENV['S3_BUCKET_NAME'];
-$expectedHostName = $_ENV['S3_HOST_NAME']; // v4-only
+$expectedBucketName = S3_BUCKET_NAME;
+$expectedHostName = S3_HOST_NAME; // v4-only
 // $expectedMaxSize is the value you set the sizeLimit property of the 
 // validation option. We assume it is `null` here. If you are performing
 // validation, then change this to match the integer value you specified
 // otherwise your policy document will be invalid.
 // http://docs.fineuploader.com/branch/develop/api/options.html#validation-option
-$expectedMaxSize = (isset($_ENV['S3_MAX_FILE_SIZE']) ? $_ENV['S3_MAX_FILE_SIZE'] : null);
+$expectedMaxSize = (S3_MAX_FILE_SIZE != "" ? S3_MAX_FILE_SIZE : null);
 
 $method = getRequestMethod();
 
@@ -102,7 +102,7 @@ function getRequestMethod() {
 // Only needed in cross-origin setups
 function handleCorsRequest() {
     // If you are relying on CORS, you will need to adjust the allowed domain here.
-    header('Access-Control-Allow-Origin: '. $_ENV['APP_URL']);
+    header('Access-Control-Allow-Origin: '. APP_URL);
 }
 
 // Only needed in cross-origin setups
