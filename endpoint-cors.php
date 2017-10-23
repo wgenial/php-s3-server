@@ -1,10 +1,7 @@
 <?php
 /**
  * PHP Server-Side Example for Fine Uploader S3.
- * Maintained by Widen Enterprises.
- *
- * Note: This is the exact server-side code used by the S3 example
- * on fineuploader.com.
+ * Maintained by WGenial, this project is based on https://github.com/FineUploader/php-s3-server.
  *
  * This example:
  *  - handles both CORS and non-CORS environments
@@ -17,9 +14,9 @@
  *
  * Requirements:
  *  - PHP 5.3 or newer
- *  - Amazon PHP SDK (only if utilizing the AWS SDK for deleting files or otherwise examining them)
+ *  - Amazon PHP SDK V3 (only if utilizing the AWS SDK for deleting files or otherwise examining them)
  *
- * If you need to install the AWS SDK, see http://docs.aws.amazon.com/aws-sdk-php-2/guide/latest/installation.html.
+ * If you need to install the AWS SDK, see http://docs.aws.amazon.com/aws-sdk-php/v3/guide/.
  */
 
 require '.env.php';
@@ -29,22 +26,37 @@ use Aws\S3\S3Client;
 // These assume you have the associated AWS keys stored in
 // the associated system environment variables
 $clientPrivateKey = AWS_CLIENT_SECRET_KEY;
+
 // These two keys are only needed if the delete file feature is enabled
 // or if you are, for example, confirming the file size in a successEndpoint
 // handler via S3's SDK, as we are doing in this example.
 $serverPublicKey = AWS_SERVER_PUBLIC_KEY;
 $serverPrivateKey = AWS_SERVER_PRIVATE_KEY;
 
+// https://docs.aws.amazon.com/aws-sdk-php/v3/guide/getting-started/basic-usage.html#creating-a-client
+// aws region and version
+$region = AWS_REGION;
+$version = AWS_VERSION;
+
 // The following variables are used when validating the policy document
 // sent by the uploader. 
 $expectedBucketName = S3_BUCKET_NAME;
+
+// http://docs.aws.amazon.com/AmazonS3/latest/API/sig-v4-authenticating-requests.html
 $expectedHostName = S3_HOST_NAME; // v4-only
+
 // $expectedMaxSize is the value you set the sizeLimit property of the 
 // validation option. We assume it is `null` here. If you are performing
 // validation, then change this to match the integer value you specified
 // otherwise your policy document will be invalid.
 // http://docs.fineuploader.com/branch/develop/api/options.html#validation-option
 $expectedMaxSize = (S3_MAX_FILE_SIZE != "" ? S3_MAX_FILE_SIZE : null);
+
+// CORS, app domain
+$appDomainCORS = APP_DOMAIN_CORS;
+
+// https://docs.aws.amazon.com/aws-sdk-php/v3/guide/service/s3-presigned-url.html
+$presignedUrlTimestamp = PRESIGNED_URL_EXPIRES_TIMESTAMP;
 
 $method = getRequestMethod();
 
@@ -101,8 +113,9 @@ function getRequestMethod() {
 
 // Only needed in cross-origin setups
 function handleCorsRequest() {
+    global $appDomainCORS;
     // If you are relying on CORS, you will need to adjust the allowed domain here.
-    header('Access-Control-Allow-Origin: '. APP_URL);
+    header('Access-Control-Allow-Origin: '. $appDomainCORS);
 }
 
 // Only needed in cross-origin setups
@@ -113,11 +126,15 @@ function handlePreflight() {
 }
 
 function getS3Client() {
-    global $serverPublicKey, $serverPrivateKey;
+    global $version, $region, $serverPublicKey, $serverPrivateKey;
 
     return S3Client::factory(array(
-        'key' => $serverPublicKey,
-        'secret' => $serverPrivateKey
+				'version' => $version,
+				'region' => $region,
+				'credentials' => [
+					'key' => $serverPublicKey,
+					'secret' => $serverPrivateKey,
+				],
     ));
 }
 
@@ -304,11 +321,13 @@ function verifyFileInS3($includeThumbnail) {
 
 // Provide a time-bombed public link to the file.
 function getTempLink($bucket, $key) {
+    global $presignedUrlTimestamp;
+
     $client = getS3Client();
     $url = "{$bucket}/{$key}";
     $request = $client->get($url);
 
-    return $client->createPresignedUrl($request, '+1 day');
+    return $client->createPresignedUrl($request, $presignedUrlTimestamp);
 }
 
 function getObjectSize($bucket, $key) {

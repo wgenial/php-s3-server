@@ -1,8 +1,7 @@
 <?php
 /**
  * PHP Server-Side Example for Fine Uploader S3.
- * Maintained by Widen Enterprises.
- *
+ * Maintained by WGenial, this project is based on https://github.com/FineUploader/php-s3-server.
  *
  * This example:
  *  - handles non-CORS environment
@@ -16,9 +15,9 @@
  *
  * Requirements:
  *  - PHP 5.3 or newer
- *  - Amazon PHP SDK (only if utilizing the AWS SDK for deleting files or otherwise examining them)
+ *  - Amazon PHP SDK V3 (only if utilizing the AWS SDK for deleting files or otherwise examining them)
  *
- * If you need to install the AWS SDK, see http://docs.aws.amazon.com/aws-sdk-php-2/guide/latest/installation.html.
+ * If you need to install the AWS SDK, see http://docs.aws.amazon.com/aws-sdk-php/v3/guide/.
  */
 
 require '.env.php';
@@ -28,22 +27,34 @@ use Aws\S3\S3Client;
 // These assume you have the associated AWS keys stored in
 // the associated system environment variables
 $clientPrivateKey = AWS_CLIENT_SECRET_KEY;
+
 // These two keys are only needed if the delete file feature is enabled
 // or if you are, for example, confirming the file size in a successEndpoint
 // handler via S3's SDK, as we are doing in this example.
 $serverPublicKey = AWS_SERVER_PUBLIC_KEY;
 $serverPrivateKey = AWS_SERVER_PRIVATE_KEY;
 
+// https://docs.aws.amazon.com/aws-sdk-php/v3/guide/getting-started/basic-usage.html#creating-a-client
+// aws region and version
+$region = AWS_REGION;
+$version = AWS_VERSION;
+
 // The following variables are used when validating the policy document
 // sent by the uploader. 
 $expectedBucketName = S3_BUCKET_NAME;
+
+// http://docs.aws.amazon.com/AmazonS3/latest/API/sig-v4-authenticating-requests.html
 $expectedHostName = S3_HOST_NAME; // v4-only
+
 // $expectedMaxSize is the value you set the sizeLimit property of the 
 // validation option. We assume it is `null` here. If you are performing
 // validation, then change this to match the integer value you specified
 // otherwise your policy document will be invalid.
 // http://docs.fineuploader.com/branch/develop/api/options.html#validation-option
 $expectedMaxSize = (S3_MAX_FILE_SIZE != "" ? S3_MAX_FILE_SIZE : null);
+
+// https://docs.aws.amazon.com/aws-sdk-php/v3/guide/service/s3-presigned-url.html
+$presignedUrlTimestamp = PRESIGNED_URL_EXPIRES_TIMESTAMP;
 
 $method = getRequestMethod();
 
@@ -256,7 +267,17 @@ function verifyFileInS3($includeThumbnail) {
     }
     else {
         $link = getTempLink($bucket, $key);
-        $response = array("tempLink" => $link);
+        $metadata = getMetaData($bucket, $key);
+        $size = getObjectSize($bucket, $key);
+        $lastmodified = getObjectLastModified($bucket, $key);
+
+        $response = array(
+            "link" => $link,
+            "metadata" => $metadata,
+            "key" => $key,
+            "size" => $size,
+            "lastmodified" => date('Y-m-d H:i:s', strtotime($lastmodified))
+        );
 
         if ($includeThumbnail) {
             $response["thumbnailUrl"] = $link;
@@ -268,11 +289,13 @@ function verifyFileInS3($includeThumbnail) {
 
 // Provide a time-bombed public link to the file.
 function getTempLink($bucket, $key) {
+    global $presignedUrlTimestamp;
+
     $client = getS3Client();
     $url = "{$bucket}/{$key}";
     $request = $client->get($url);
 
-    return $client->createPresignedUrl($request, '+15 minutes');
+    return $client->createPresignedUrl($request, $presignedUrlTimestamp);
 }
 
 function getObjectSize($bucket, $key) {
@@ -281,6 +304,22 @@ function getObjectSize($bucket, $key) {
         'Key' => $key
     ));
     return $objInfo['ContentLength'];
+}
+
+function getObjectLastModified($bucket, $key) {
+    $objInfo = getS3Client()->headObject(array(
+            'Bucket' => $bucket,
+            'Key' => $key
+        ));
+    return $objInfo['LastModified'];
+}
+
+function getMetaData($bucket, $key) {
+    $objInfo = getS3Client()->headObject(array(
+            'Bucket' => $bucket,
+            'Key' => $key
+        ));
+    return $objInfo['Metadata'];
 }
 
 // Return true if it's likely that the associate file is natively
