@@ -140,10 +140,14 @@ function getS3Client() {
 
 // Only needed if the delete file feature is enabled
 function deleteObject() {
-    getS3Client()->deleteObject(array(
-        'Bucket' => $_REQUEST['bucket'],
-        'Key' => $_REQUEST['key']
-    ));
+	global $version, $region;
+
+	getS3Client()->deleteObject(array(
+            'version' => $version,
+			'region' => $region,
+			'Bucket' => $_REQUEST['bucket'],
+			'Key' => $_REQUEST['key']
+	));
 }
 
 function signRequest() {
@@ -322,12 +326,14 @@ function verifyFileInS3($includeThumbnail) {
 // Provide a time-bombed public link to the file.
 function getTempLink($bucket, $key) {
     global $presignedUrlTimestamp;
-
-    $client = getS3Client();
-    $url = "{$bucket}/{$key}";
-    $request = $client->get($url);
-
-    return $client->createPresignedUrl($request, $presignedUrlTimestamp);
+    
+    $s3Client = getS3Client();
+    $cmd = $s3Client->getCommand('GetObject', array(
+        'Bucket' => $bucket,
+        'Key'    => $key
+    ));
+    $request = $s3Client->createPresignedRequest($cmd, $presignedUrlTimestamp);
+    return $presignedUrl = $request->getUri();
 }
 
 function getObjectSize($bucket, $key) {
